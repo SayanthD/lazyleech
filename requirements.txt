@@ -3,3 +3,4 @@ pyrogram==1.4.16
 tgcrypto
 natsort
 aiohttp
+python-dotenv==0.21.0
