@@ -1,5 +1,5 @@
 .venv
 config.env
 __pycache__
-*.session
+*.session*
 test*.*

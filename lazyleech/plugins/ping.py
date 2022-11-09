@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from pyrogram import Client, filters
+from pyrogram.types import Message
 from .. import ALL_CHATS
 
 @Client.on_message(filters.command('ping') & filters.chat(ALL_CHATS))
-async def ping_pong(client, message):
+async def ping_pong(client: Client, message: Message):
     await message.reply_text('Pong')

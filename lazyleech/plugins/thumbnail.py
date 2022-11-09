@@ -17,11 +17,12 @@
 import os
 import tempfile
 from pyrogram import Client, filters
+from pyrogram.types import Message
 from .. import ALL_CHATS, help_dict
 from ..utils.misc import convert_to_jpg, get_file_mimetype, watermark_photo
 
 @Client.on_message(filters.command(['thumbnail', 'savethumbnail', 'setthumbnail']) & filters.chat(ALL_CHATS))
-async def savethumbnail(client, message):
+async def savethumbnail(client: Client, message: Message):
     reply = message.reply_to_message
     document = message.document
     photo = message.photo
@@ -58,7 +59,7 @@ async def savethumbnail(client, message):
         await message.reply_text('Cannot find thumbnail')
 
 @Client.on_message(filters.command(['clearthumbnail', 'rmthumbnail', 'delthumbnail', 'removethumbnail', 'deletethumbnail']) & filters.chat(ALL_CHATS))
-async def rmthumbnail(client, message):
+async def rmthumbnail(client: Client, message: Message):
     for path in ('thumbnail', 'watermarked_thumbnail'):
         path = os.path.join(str(message.from_user.id), f'{path}.jpg')
         if os.path.isfile(path):

@@ -16,12 +16,12 @@
 
 import asyncio
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from .. import ALL_CHATS, help_dict
 from ..utils import custom_filters
 
 @Client.on_message(filters.command('help') & filters.chat(ALL_CHATS))
-async def help_cmd(client, message):
+async def help_cmd(client: Client, message: Message):
     module = message.text.split(' ', 1)
     module.pop(0)
     try:
@@ -51,19 +51,19 @@ async def help_cmd(client, message):
         if to_append:
             buttons.append(to_append)
     reply = await message.reply_text(text, reply_markup=InlineKeyboardMarkup(buttons))
-    callback_info[(reply.chat.id, reply.message_id)] = message.from_user.id, module
+    callback_info[(reply.chat.id, reply.id)] = message.from_user.id, module
 
 callback_lock = asyncio.Lock()
 callback_info = dict()
 @Client.on_callback_query(custom_filters.callback_data('help_back') & custom_filters.callback_chat(ALL_CHATS))
-async def help_back(client, callback_query):
+async def help_back(client: Client, callback_query: CallbackQuery):
     message = callback_query.message
-    message_identifier = (message.chat.id, message.message_id)
+    message_identifier = (message.chat.id, message.id)
     if message_identifier not in callback_info:
         await callback_query.answer('This help message is too old that I don\'t have info on it.', show_alert=True, cache_time=3600)
         return
     async with callback_lock:
-        info = callback_info.get((message.chat.id, message.message_id))
+        info = callback_info.get((message.chat.id, message.id))
         user_id, location = info
         if user_id != callback_query.from_user.id:
             await callback_query.answer('...no', cache_time=3600)
@@ -84,14 +84,14 @@ async def help_back(client, callback_query):
     await callback_query.answer()
 
 @Client.on_callback_query(filters.regex('help_m.+') & custom_filters.callback_chat(ALL_CHATS))
-async def help_m(client, callback_query):
+async def help_m(client: Client, callback_query: CallbackQuery):
     message = callback_query.message
-    message_identifier = (message.chat.id, message.message_id)
+    message_identifier = (message.chat.id, message.id)
     if message_identifier not in callback_info:
         await callback_query.answer('This help message is too old that I don\'t have info on it.', show_alert=True, cache_time=3600)
         return
     async with callback_lock:
-        info = callback_info.get((message.chat.id, message.message_id))
+        info = callback_info.get((message.chat.id, message.id))
         user_id, location = info
         if user_id != callback_query.from_user.id:
             await callback_query.answer('...no', cache_time=3600)

@@ -21,7 +21,7 @@ import asyncio
 import tempfile
 from urllib.parse import urlsplit
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from .. import ALL_CHATS, SendAsZipFlag, ForceDocumentFlag
 from ..utils.misc import get_file_mimetype
 from ..utils import custom_filters
@@ -30,7 +30,7 @@ from .leech import initiate_torrent, initiate_magnet
 NYAA_REGEX = re.compile(r'^(?:https?://)?(?P<base>(?:www\.|sukebei\.)?nyaa\.si|nyaa\.squid\.workers\.dev)/(?:view|download)/(?P<sauce>\d+)(?:[\./]torrent)?$')
 auto_detects = dict()
 @Client.on_message(filters.chat(ALL_CHATS), group=1)
-async def autodetect(client, message):
+async def autodetect(client: Client, message: Message):
     text = message.text
     document = message.document
     link = None
@@ -61,14 +61,14 @@ async def autodetect(client, message):
             [InlineKeyboardButton('Individual Files', 'autodetect_individual'), InlineKeyboardButton('Zip', 'autodetect_zip'), InlineKeyboardButton('Force Document', 'autodetect_file')],
             [InlineKeyboardButton('Delete', 'autodetect_delete')]
         ]))
-        auto_detects[(reply.chat.id, reply.message_id)] = link, message.from_user.id, (initiate_torrent if is_torrent else initiate_magnet)
+        auto_detects[(reply.chat.id, reply.id)] = link, message.from_user.id, (initiate_torrent if is_torrent else initiate_magnet)
 
 answered = set()
 answer_lock = asyncio.Lock()
 @Client.on_callback_query(custom_filters.callback_data(['autodetect_individual', 'autodetect_zip', 'autodetect_file', 'autodetect_delete']) & custom_filters.callback_chat(ALL_CHATS))
-async def autodetect_callback(client, callback_query):
+async def autodetect_callback(client: Client, callback_query: CallbackQuery):
     message = callback_query.message
-    identifier = (message.chat.id, message.message_id)
+    identifier = (message.chat.id, message.id)
     result = auto_detects.get(identifier)
     if not result:
         await callback_query.answer('I can\'t get your message, please try again.', show_alert=True, cache_time=3600)

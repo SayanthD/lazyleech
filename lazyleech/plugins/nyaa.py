@@ -21,7 +21,7 @@ import feedparser
 from urllib.parse import quote as urlencode, urlsplit
 from pyrogram import Client, filters
 from pyrogram.parser import html as pyrogram_html
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message, CallbackQuery
 from .. import ALL_CHATS, session, help_dict
 from ..utils import custom_filters
 
@@ -72,14 +72,14 @@ async def return_search(query, page=1, sukebei=False):
 message_info = dict()
 ignore = set()
 @Client.on_message(filters.command(['ts', 'nyaa', 'nyaasi']))
-async def nyaa_search(client, message):
+async def nyaa_search(client: Client, message: Message):
     text = message.text.split(' ')
     text.pop(0)
     query = ' '.join(text)
     await init_search(client, message, query, False)
 
 @Client.on_message(filters.command(['sts', 'sukebei']))
-async def nyaa_search_sukebei(client, message):
+async def nyaa_search_sukebei(client: Client, message: Message):
     text = message.text.split(' ')
     text.pop(0)
     query = ' '.join(text)
@@ -96,17 +96,17 @@ async def init_search(client, message, query, sukebei):
         reply = await message.reply_text(result, reply_markup=InlineKeyboardMarkup([
             buttons
         ]))
-        message_info[(reply.chat.id, reply.message_id)] = message.from_user.id, ttl, query, 1, pages, sukebei
+        message_info[(reply.chat.id, reply.id)] = message.from_user.id, ttl, query, 1, pages, sukebei
 
 @Client.on_callback_query(custom_filters.callback_data('nyaa_nop'))
-async def nyaa_nop(client, callback_query):
+async def nyaa_nop(client: Client, callback_query: CallbackQuery):
     await callback_query.answer(cache_time=3600)
 
 callback_lock = asyncio.Lock()
 @Client.on_callback_query(custom_filters.callback_data(['nyaa_back', 'nyaa_next']))
-async def nyaa_callback(client, callback_query):
+async def nyaa_callback(client: Client, callback_query: CallbackQuery):
     message = callback_query.message
-    message_identifier = (message.chat.id, message.message_id)
+    message_identifier = (message.chat.id, message.id)
     data = callback_query.data
     async with callback_lock:
         if message_identifier in ignore:

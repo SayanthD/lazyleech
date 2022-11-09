@@ -24,6 +24,8 @@ import asyncio
 import zipfile
 import tempfile
 import traceback
+from pyrogram import Client
+from pyrogram.types import Message
 from pyrogram import StopTransmission
 from collections import defaultdict
 from natsort import natsorted
@@ -42,7 +44,7 @@ async def upload_worker():
     while True:
         client, message, reply, torrent_info, user_id, flags = await upload_queue.get()
         try:
-            message_identifier = (reply.chat.id, reply.message_id)
+            message_identifier = (reply.chat.id, reply.id)
             if SendAsZipFlag not in flags:
                 asyncio.create_task(reply.edit_text('Download successful, uploading files...'))
             task = asyncio.create_task(_upload_worker(client, message, reply, torrent_info, user_id, flags))
@@ -59,7 +61,7 @@ async def upload_worker():
                 await client.send_message(admin_chat, traceback.format_exc(), parse_mode=None)
         finally:
             upload_queue.task_done()
-        worker_identifier = (reply.chat.id, reply.message_id)
+        worker_identifier = (reply.chat.id, reply.id)
         to_delete = []
         async with upload_tamper_lock:
             for key in upload_waits:
@@ -77,7 +79,7 @@ async def upload_worker():
             await task
 
 upload_waits = dict()
-async def _upload_worker(client, message, reply, torrent_info, user_id, flags):
+async def _upload_worker(client: Client, message: Message, reply: Message, torrent_info, user_id, flags):
     files = dict()
     sent_files = []
     with tempfile.TemporaryDirectory(dir=str(user_id)) as zip_tempdir:
@@ -140,18 +142,18 @@ async def _upload_worker(client, message, reply, torrent_info, user_id, flags):
         first_index = thing
     asyncio.create_task(reply.edit_text(f'Download successful, files uploaded.\nFiles: {first_index.link}', disable_web_page_preview=True))
 
-async def _upload_file(client, message, reply, filename, filepath, force_document):
+async def _upload_file(client: Client, message: Message, reply: Message, filename, filepath, force_document):
     if not os.path.getsize(filepath):
         return [(os.path.basename(filename), None)]
-    worker_identifier = (reply.chat.id, reply.message_id)
+    worker_identifier = (reply.chat.id, reply.id)
     user_id = message.from_user.id
     user_thumbnail = os.path.join(str(user_id), 'thumbnail.jpg')
     user_watermark = os.path.join(str(user_id), 'watermark.jpg')
     user_watermarked_thumbnail = os.path.join(str(user_id), 'watermarked_thumbnail.jpg')
     file_has_big = os.path.getsize(filepath) > 2097152000
     upload_wait = await reply.reply_text(f'Upload of {html.escape(filename)} will start in {PROGRESS_UPDATE_DELAY}s')
-    message_exists[upload_wait.chat.id].add(upload_wait.message_id)
-    upload_identifier = (upload_wait.chat.id, upload_wait.message_id)
+    message_exists[upload_wait.chat.id].add(upload_wait.id)
+    upload_identifier = (upload_wait.chat.id, upload_wait.id)
     async with upload_tamper_lock:
         upload_waits[upload_identifier] = user_id, worker_identifier
     to_upload = []
@@ -187,7 +189,7 @@ async def _upload_file(client, message, reply, filename, filepath, force_documen
                         async with upload_tamper_lock:
                             upload_waits.pop(upload_identifier)
                             upload_wait = await reply.reply_text(f'Upload of {html.escape(filename)} will start in {PROGRESS_UPDATE_DELAY}s')
-                            upload_identifier = (upload_wait.chat.id, upload_wait.message_id)
+                            upload_identifier = (upload_wait.chat.id, upload_wait.id)
                             upload_waits[upload_identifier] = user_id, worker_identifier
                         for _ in range(PROGRESS_UPDATE_DELAY):
                             if upload_identifier in stop_uploads:
@@ -252,18 +254,18 @@ async def _upload_file(client, message, reply, filename, filepath, force_documen
         if split_task:
             split_task.cancel()
         async with message_exists_lock:
-            message_exists[upload_wait.chat.id].discard(upload_wait.message_id)
+            message_exists[upload_wait.chat.id].discard(upload_wait.id)
         asyncio.create_task(upload_wait.delete())
         async with upload_tamper_lock:
             upload_waits.pop(upload_identifier)
 
 progress_callback_data = dict()
 stop_uploads = set()
-async def progress_callback(current, total, client, message, reply, filename, user_id):
+async def progress_callback(current, total, client: Client, message: Message, reply: Message, filename, user_id):
     try:
-        if reply.message_id not in message_exists[reply.chat.id]:
+        if reply.id not in message_exists[reply.chat.id]:
             return
-        message_identifier = (reply.chat.id, reply.message_id)
+        message_identifier = (reply.chat.id, reply.id)
         last_edit_time, prevtext, start_time, user_id = progress_callback_data.get(message_identifier, (0, None, time.time(), user_id))
         if message_identifier in stop_uploads or current == total:
             asyncio.create_task(reply.delete())
@@ -285,14 +287,14 @@ async def progress_callback(current, total, client, message, reply, filename, us
 <b>Uploaded Size:</b> {format_bytes(current)}
 <b>Upload Speed:</b> {upload_speed}/s
 <b>ETA:</b> {calculate_eta(current, total, start_time)}'''
-            if prevtext != text and reply.message_id in message_exists[reply.chat.id]:
+            if prevtext != text and reply.id in message_exists[reply.chat.id]:
                 async with message_exists_lock:
-                    if reply.message_id not in message_exists[reply.chat.id]:
+                    if reply.id not in message_exists[reply.chat.id]:
                         return
                     try:
                         await reply.edit_text(text)
                     except MessageIdInvalid:
-                        message_exists[reply.chat.id].discard(reply.message_id)
+                        message_exists[reply.chat.id].discard(reply.id)
                         return
                     except MessageNotModified:
                         pass

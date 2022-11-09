@@ -21,10 +21,11 @@ import html
 import inspect
 import traceback
 from pyrogram import Client, filters
+from pyrogram.types import Message
 from .. import ADMIN_CHATS, memory_file
 
 @Client.on_message(filters.command('exec') & filters.chat(ADMIN_CHATS))
-async def run_code(client, message):
+async def run_code(client: Client, message: Message):
     class UniqueExecReturnIdentifier:
         pass
     code = message.text[5:].strip()

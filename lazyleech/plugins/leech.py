@@ -22,13 +22,14 @@ import tempfile
 from urllib.parse import urlparse, urlunparse, unquote as urldecode
 from pyrogram import Client, filters
 from pyrogram.parser import html as pyrogram_html
+from pyrogram.types import Message
 from .. import ADMIN_CHATS, ALL_CHATS, PROGRESS_UPDATE_DELAY, session, help_dict, LEECH_TIMEOUT, MAGNET_TIMEOUT, SendAsZipFlag, ForceDocumentFlag
 from ..utils.aria2 import aria2_add_torrent, aria2_tell_status, aria2_remove, aria2_add_magnet, Aria2Error, aria2_tell_active, is_gid_owner, aria2_add_directdl
 from ..utils.misc import format_bytes, get_file_mimetype, return_progress_string, calculate_eta, allow_admin_cancel
 from ..utils.upload_worker import upload_queue, upload_statuses, progress_callback_data, upload_waits, stop_uploads
 
 @Client.on_message(filters.command(['torrent', 'ziptorrent', 'filetorrent']) & filters.chat(ALL_CHATS))
-async def torrent_cmd(client, message):
+async def torrent_cmd(client: Client, message: Message):
     text = (message.text or message.caption).split(None, 1)
     command = text.pop(0).lower()
     if 'zip' in command:
@@ -94,7 +95,7 @@ async def initiate_torrent(client, message, link, flags):
     await handle_leech(client, message, gid, reply, user_id, flags)
 
 @Client.on_message(filters.command(['magnet', 'zipmagnet', 'filemagnet']) & filters.chat(ALL_CHATS))
-async def magnet_cmd(client, message):
+async def magnet_cmd(client: Client, message: Message):
     text = (message.text or message.caption).split(None, 1)
     command = text.pop(0).lower()
     if 'zip' in command:
@@ -135,7 +136,7 @@ async def initiate_magnet(client, message, link, flags):
         await handle_leech(client, message, gid, reply, user_id, flags)
 
 @Client.on_message(filters.command(['directdl', 'direct', 'zipdirectdl', 'zipdirect', 'filedirectdl', 'filedirect']) & filters.chat(ALL_CHATS))
-async def directdl_cmd(client, message):
+async def directdl_cmd(client: Client, message: Message):
     text = message.text.split(None, 1)
     command = text.pop(0).lower()
     if 'zip' in command:
@@ -207,7 +208,7 @@ async def handle_leech(client, message, gid, reply, user_id, flags):
     torrent_info = await aria2_tell_status(session, gid)
     last_edit = 0
     start_time = time.time()
-    message_identifier = (reply.chat.id, reply.message_id)
+    message_identifier = (reply.chat.id, reply.id)
     leech_statuses[message_identifier] = gid
     download_speed = None
     while torrent_info['status'] in ('active', 'waiting', 'paused'):
@@ -279,7 +280,7 @@ async def handle_leech(client, message, gid, reply, user_id, flags):
                 await task
 
 @Client.on_message(filters.command('list') & filters.chat(ALL_CHATS))
-async def list_leeches(client, message):
+async def list_leeches(client: Client, message: Message):
     user_id = message.from_user.id
     text = ''
     quote = None
@@ -307,7 +308,7 @@ async def list_leeches(client, message):
     await message.reply_text(text, quote=quote)
 
 @Client.on_message(filters.command('cancel') & filters.chat(ALL_CHATS))
-async def cancel_leech(client, message):
+async def cancel_leech(client: Client, message: Message):
     user_id = message.from_user.id
     gid = None
     reply = message.reply_to_message
@@ -321,7 +322,7 @@ async def cancel_leech(client, message):
                 # goes through to the gid check with no gid, showing usage info and returning
                 reply_identifier = None
         else:
-            reply_identifier = (reply.chat.id, reply.message_id)
+            reply_identifier = (reply.chat.id, reply.id)
         task = upload_statuses.get(reply_identifier)
         if task:
             task, starter_id = task
